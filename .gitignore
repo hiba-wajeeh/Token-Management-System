@@ -46,3 +46,29 @@ config.ini
 .env
 .env.*
 Token-Management-System/
+
+# =========================
+# Build / Release outputs
+# =========================
+dist/
+build/
+release/
+out/
+
+**/dist/
+**/build/
+**/release/
+**/out/
+
+# Electron / Windows artifacts
+**/*.exe
+**/*.msi
+**/*.zip
+**/*.7z
+**/*.dll
+**/*.map
+
+# Electron unpacked folders
+**/win-unpacked/
+**/linux-unpacked/
+**/mac/
