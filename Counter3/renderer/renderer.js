@@ -1,13 +1,13 @@
 const { ipcRenderer } = require("electron");
 const dgram = require("dgram");
 
-// Start with localhost fallback until discovery/config loads
-let baseUrl = "http://127.0.0.1:8032";
+
+let baseUrl = "http://172.16.0.168:8032";
 const DISCOVERY_PORT = 9999;
 const counter = "Counter3";
 console.log("renderer.js loaded ✅");
 
-// local fallback if backend doesn't provide called_count
+
 let localCalledCount = 0;
 
 function setText(id, value) {
@@ -88,21 +88,52 @@ async function refresh() {
     const res = await fetch(`${baseUrl}/api/queue?dept=welfare`, { cache: "no-store" });
     const data = await res.json();
 
-
     // Total waiting
     setText("totalWaiting", pad4(data.waiting_count ?? 0));
+
+    // NEW: split waiting
+    setText("apptWaiting", pad4(data.waiting_appt_count ?? 0));
+    setText("walkinWaiting", pad4(data.waiting_walkin_count ?? 0));
 
     // Current token number
     setText("currentToken", data.last_called ?? "----");
 
-    // Total called (backend preferred)
+    // Total called
     const called = (data.called_count ?? localCalledCount);
     setText("totalCalled", pad4(called));
+
+    // Optional: show a short preview list (first 6)
+    setText("apptList", (data.waiting_appt_list ?? []).slice(0, 6).join(", ") || "-");
+    setText("walkinList", (data.waiting_walkin_list ?? []).slice(0, 6).join(", ") || "-");
+
   } catch (e) {
     setText("status", `❌ Server not reachable: ${baseUrl}`);
     console.log("refresh error:", e);
   }
 }
+
+async function nextWalkin() {
+  try {
+    const res = await fetch(`${baseUrl}/api/call-next`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dept: "welfare", counter, mode: "walkin" })
+    });
+
+    const data = await res.json();
+    if (data.token_no === null) {
+      alert("No waiting walk-ins.");
+      return;
+    }
+    localCalledCount++;
+    await refresh();
+  } catch (e) {
+    console.log("nextWalkin error:", e);
+    setText("status", "❌ Failed calling walk-in next");
+  }
+}
+
+
 
 async function nextToken() {
   console.log(counter)
@@ -162,9 +193,11 @@ async function recallToken() {
 document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("nextBtn")?.addEventListener("click", nextToken);
   document.getElementById("recallBtn")?.addEventListener("click", recallToken);
+  document.getElementById("walkinBtn")?.addEventListener("click", nextWalkin);
+
 
   // 1) load last saved server ip (fast startup)
-  await loadSavedServerUrl();
+  // await loadSavedServerUrl();
 
   // 2) listen for auto-discovery (auto switch)
   startDiscoveryListener();

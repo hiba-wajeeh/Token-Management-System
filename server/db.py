@@ -23,7 +23,6 @@ def connect():
     conn.execute("PRAGMA busy_timeout=5000;")
     return conn
 
-
 def init_db(conn: sqlite3.Connection, appt_start: int, walkin_start: int):
     cur = conn.cursor()
 
@@ -60,7 +59,6 @@ def init_db(conn: sqlite3.Connection, appt_start: int, walkin_start: int):
         )
     conn.commit()
 
-
 def daily_cleanup_if_needed(conn: sqlite3.Connection, appt_start: int, walkin_start: int):
     cur = conn.cursor()
     cur.execute("SELECT session_date FROM state WHERE id=1")
@@ -82,7 +80,6 @@ def daily_cleanup_if_needed(conn: sqlite3.Connection, appt_start: int, walkin_st
         return True
 
     return False
-
 
 def create_token_atomic(conn: sqlite3.Connection, dept: str, visit_type: str, appt_start: int, walkin_start: int) -> int:
     """
@@ -116,22 +113,42 @@ def create_token_atomic(conn: sqlite3.Connection, dept: str, visit_type: str, ap
     conn.commit()
     return int(next_no)
 
-
-def call_next_atomic(conn: sqlite3.Connection, dept: str, counter: str):
+def call_next_atomic(conn: sqlite3.Connection, dept: str, counter: str, visit_type: str | None = None):
     """
-    Appointment first always:
-    ORDER BY priority ASC, created_at ASC
+    visit_type:
+      None/"auto"      => appointment first always (priority asc)
+      "appointment"    => only appointments
+      "walkin"         => only walkins
     """
+    vt = (visit_type or "auto").lower().strip()
     cur = conn.cursor()
     cur.execute("BEGIN IMMEDIATE")
 
-    cur.execute("""
-        SELECT id, token_no
-        FROM tokens
-        WHERE dept=? AND status='WAITING'
-        ORDER BY priority ASC, created_at ASC
-        LIMIT 1
-    """, (dept,))
+    if vt == "appointment":
+        cur.execute("""
+            SELECT id, token_no
+            FROM tokens
+            WHERE dept=? AND status='WAITING' AND priority=1
+            ORDER BY created_at ASC
+            LIMIT 1
+        """, (dept,))
+    elif vt == "walkin":
+        cur.execute("""
+            SELECT id, token_no
+            FROM tokens
+            WHERE dept=? AND status='WAITING' AND priority=2
+            ORDER BY created_at ASC
+            LIMIT 1
+        """, (dept,))
+    else:
+        cur.execute("""
+            SELECT id, token_no
+            FROM tokens
+            WHERE dept=? AND status='WAITING'
+            ORDER BY priority ASC, created_at ASC
+            LIMIT 1
+        """, (dept,))
+
     row = cur.fetchone()
     if not row:
         conn.commit()
@@ -145,12 +162,18 @@ def call_next_atomic(conn: sqlite3.Connection, dept: str, counter: str):
     """, (now, counter, row["id"]))
     conn.commit()
     return int(row["token_no"])
-
+    
+def create_indexes(conn):
+    cur = conn.cursor()
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_tokens_dept_status_priority_created ON tokens(dept, status, priority, created_at)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_tokens_dept_status_created ON tokens(dept, status, created_at)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_tokens_dept_called_by_called_at ON tokens(dept, called_by, called_at)")
+    conn.commit()
 
 def get_queue(conn: sqlite3.Connection, dept: str):
     cur = conn.cursor()
     cur.execute("""
-        SELECT token_no, status, created_at, called_at, called_by
+        SELECT token_no, priority, status, created_at, called_at, called_by
         FROM tokens
         WHERE dept=?
         ORDER BY created_at ASC
@@ -159,11 +182,25 @@ def get_queue(conn: sqlite3.Connection, dept: str):
 
     waiting = [r for r in rows if r["status"] == "WAITING"]
     called  = [r for r in rows if r["status"] == "CALLED"]
+
+    waiting_appt   = [r for r in waiting if r["priority"] == 1]
+    waiting_walkin = [r for r in waiting if r["priority"] == 2]
+
     return {
         "dept": dept,
+
+        # existing
         "waiting_count": len(waiting),
         "waiting_list": [r["token_no"] for r in waiting],
-        "last_called": called[-1]["token_no"] if called else None
+        "last_called": called[-1]["token_no"] if called else None,
+
+        # new
+        "waiting_appt_count": len(waiting_appt),
+        "waiting_walkin_count": len(waiting_walkin),
+        "waiting_appt_list": [r["token_no"] for r in waiting_appt],
+        "waiting_walkin_list": [r["token_no"] for r in waiting_walkin],
+
+        "called_count": len(called),
     }
 
 def get_last_called(conn: sqlite3.Connection, dept: str):
@@ -192,7 +229,6 @@ def get_last_printed(conn, dept):
     row = cur.fetchone()
     return {"token_no": row[0]} if row else None
 
-
 def get_last_called_for_counter(conn, dept: str, counter: str):
     cur = conn.cursor()
     cur.execute("""
@@ -206,7 +242,6 @@ def get_last_called_for_counter(conn, dept: str, counter: str):
     """, (dept, counter))
     row = cur.fetchone()
     return int(row["token_no"]) if row else None
-
 
 def get_serving_now(conn, dept: str, counters: list[str]):
     result = {}
@@ -223,9 +258,6 @@ def record_recall(conn: sqlite3.Connection, counter: str):
         WHERE id = 1
     """, (counter,))
     conn.commit()
-
-
-# db.py
 
 def get_last_called_for_counters(conn, dept: str, counters: list[str]) -> dict:
     """

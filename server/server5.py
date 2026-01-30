@@ -39,6 +39,7 @@ class PrintBody(BaseModel):
 class CallNextBody(BaseModel):
     dept: str = "welfare"
     counter: str = "Counter1"
+    mode: Literal["auto", "appointment", "walkin"] = "auto"
 
 class RecallBody(BaseModel):
     dept: str = "welfare"
@@ -60,7 +61,6 @@ def startup():
     finally:
         conn.close()
 
-# ------------------ pages ------------------
 
 @app.get("/", response_class=HTMLResponse)
 def root():
@@ -76,7 +76,6 @@ def reception_page():
     with open("web/reception.html", "r", encoding="utf-8") as f:
         return f.read()
 
-# ------------------ APIs ------------------
 
 APPT_START = 1001
 WALKIN_START = 2001
@@ -108,7 +107,7 @@ def api_call_next(body: CallNextBody):
         db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
         db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
 
-        token_no = db.call_next_atomic(conn, body.dept, body.counter)
+        token_no = db.call_next_atomic(conn, body.dept, body.counter, body.mode)
         if token_no is None:
             return {"token_no": None}
 

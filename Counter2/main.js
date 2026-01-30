@@ -9,7 +9,7 @@ function loadConfig() {
     return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
   } catch {
     // default: point to localhost (for testing on same PC)
-    return { serverUrl: "http://127.0.0.8032" };
+    return { serverUrl: "http://127.0.0.1:8032" };
   }
 }
 

@@ -4,12 +4,12 @@
 
     <div class="top">
       <div class="metric">
-        <div class="label blue">Total</div>
+        <div class="label blue">Total Called</div>
         <div class="value blue" id="totalCalled">0000</div>
       </div>
 
       <div class="metric">
-        <div class="label green">Total P</div>
+        <div class="label green">Total Waiting</div>
         <div class="value green" id="totalWaiting">0000</div>
       </div>
 
@@ -19,113 +19,156 @@
       </div>
     </div>
 
+    <!-- NEW: split waiting -->
+    <div class="split">
+      <div class="splitBox appt">
+        <div class="splitLabel">Appointments</div>
+        <div class="splitValue" id="apptWaiting">0000</div>
+      </div>
+
+      <div class="splitBox walkin">
+        <div class="splitLabel">Walk-ins</div>
+        <div class="splitValue" id="walkinWaiting">0000</div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
     <div class="buttons">
       <button id="recallBtn" class="btn blue">Recall</button>
       <button id="nextBtn" class="btn green">Next</button>
+      <button id="walkinBtn" class="btn orange">Next Walk-in</button>
     </div>
 
+    <div class="status" id="status"></div>
+    <div class="footer" id="footer"></div>
+  </div>
+
   <script src="renderer.js"></script>
+
   <style>
-  /* lock to a small kiosk-like window */
-  html, body {
-    width: 520px;
-    height: 260px;
-    margin: 0;
-    overflow: hidden;
-    font-family: Arial, sans-serif;
-    background: #eee;
-  }
+    /* lock to a small kiosk-like window */
+    html, body {
+      width: 520px;
+      height: 260px;
+      margin: 0;
+      overflow: hidden;
+    }
 
-  .card {
-    width: 500px;
-    height: 240px;
-    margin: 10px;
-    border: 2px solid #666;
-    background: #fff;
-    box-sizing: border-box;
-    padding: 10px 14px;
-    position: relative;
-  }
+    .card {
+      width: 500px;
+      height: 240px;
+      margin: 10px;
+      padding: 8px 14px 26px; /* ✅ extra bottom padding for footer */
+      box-sizing: border-box;
+    }
 
-  .title {
-    text-align: center;
-    font-weight: 700;
-    font-size: 22px;
-    margin-bottom: 6px;
-  }
 
-  .top {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
-    align-items: center;
-    margin-top: 4px;
-  }
 
-  .metric {
-    text-align: center;
-  }
+    .title {
+      text-align: center;
+      font-weight: 700;
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
 
-  .label {
-    font-size: 18px;
-    font-weight: 700;
-  }
+    .top {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-top: 4px;
+    }
 
-  .value {
-    font-size: 44px;
-    font-weight: 800;
-    letter-spacing: 2px;
-    margin-top: 6px;
-  }
+    .metric { text-align: center; }
 
-  .blue { color: #1e49d6; }
-  .green { color: #1a7a2e; }
-  .red { color: #c92020; }
+    .label {
+      font-size: 16px;
+      font-weight: 700;
+    }
 
-  .buttons {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
-    padding: 0 18px;
-  }
+    .value {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      margin-top: 4px;
+    }
 
-  .btn {
-    width: 150px;
-    height: 55px;
-    font-size: 20px;
-    font-weight: 700;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-  }
-  .btn.blue { background: #1e49d6; }
-  .btn.green { background: #1a7a2e; }
+    .blue { color: #1e49d6; }
+    .green { color: #1a7a2e; }
+    .red { color: #c92020; }
+    .orangeText { color: #b35a00; }
 
-  .row {
-    margin-top: 10px;
-    font-size: 14px;
-  }
-  input {
-    width: 140px;
-    height: 24px;
-    margin-left: 6px;
-  }
+    /* NEW: appointment vs walk-in split */
+    .split {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
 
-  .status {
-    margin-top: 6px;
-    font-size: 13px;
-    color: #333;
-  }
+    .splitBox {
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      padding: 6px 8px;
+      text-align: center;
+    }
 
-  .footer {
-    position: absolute;
-    bottom: 8px;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-size: 12px;
-    color: #a11;
-  }
-</style>
+    .splitBox.appt { border-color: #1e49d6; }
+    .splitBox.walkin { border-color: #b35a00; }
 
+    .splitLabel {
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .splitBox.appt .splitLabel { color: #1e49d6; }
+    .splitBox.walkin .splitLabel { color: #b35a00; }
+
+    .splitValue {
+      font-size: 30px;
+      font-weight: 900;
+      margin-top: 2px;
+      letter-spacing: 1px;
+    }
+
+    /* Buttons */
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 0 4px;
+    }
+
+    .btn {
+      flex: 1;
+      height: 52px;
+      font-size: 17px;
+      font-weight: 800;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 10px;
+    }
+
+    .btn.blue { background: #1e49d6; }
+    .btn.green { background: #1a7a2e; }
+    .btn.orange { background: #b35a00; }
+
+    .status {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #333;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 6px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 11px;
+      color: #a11;
+    }
+  </style>
 </body>
