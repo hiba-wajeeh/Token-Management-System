@@ -186,15 +186,26 @@ def get_queue(conn: sqlite3.Connection, dept: str):
     waiting_appt   = [r for r in waiting if r["priority"] == 1]
     waiting_walkin = [r for r in waiting if r["priority"] == 2]
 
+    # ✅ Correct "last_called" based on most recent CALL time (not created time)
+    cur.execute("""
+        SELECT token_no
+        FROM tokens
+        WHERE dept=? AND status='CALLED' AND called_at IS NOT NULL
+        ORDER BY called_at DESC
+        LIMIT 1
+    """, (dept,))
+    row = cur.fetchone()
+    last_called = int(row["token_no"]) if row else None
+
     return {
         "dept": dept,
 
-        # existing
         "waiting_count": len(waiting),
         "waiting_list": [r["token_no"] for r in waiting],
-        "last_called": called[-1]["token_no"] if called else None,
 
-        # new
+        # ✅ fixed
+        "last_called": last_called,
+
         "waiting_appt_count": len(waiting_appt),
         "waiting_walkin_count": len(waiting_walkin),
         "waiting_appt_list": [r["token_no"] for r in waiting_appt],
