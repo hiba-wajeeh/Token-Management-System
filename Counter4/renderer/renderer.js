@@ -2,7 +2,7 @@ const { ipcRenderer } = require("electron");
 const dgram = require("dgram");
 
 
-let baseUrl = "http://172.16.0.168:8032";
+let baseUrl = "http://172.16.0.175:8032";
 const DISCOVERY_PORT = 9999;
 const counter = "Counter4";
 console.log("renderer.js loaded ✅");
@@ -123,6 +123,7 @@ async function nextWalkin() {
     const data = await res.json();
     if (data.token_no === null) {
       alert("No waiting walk-ins.");
+      setText("status", "Last patient sent to nursing ✔");
       return;
     }
     localCalledCount++;
@@ -156,6 +157,7 @@ async function nextToken() {
 
     if (data.token_no === null) {
       alert("No waiting tokens.");
+      setText("status", "Last patient sent to nursing ✔");
       return;
     }
 

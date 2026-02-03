@@ -1,0 +1,100 @@
+<body>
+  <div class="card">
+    <div class="title">Nursing Station</div>
+
+    <div class="top">
+      <div class="metric">
+        <div class="label green">Waiting</div>
+        <div class="value green" id="totalWaiting">0000</div>
+      </div>
+
+      <div class="metric">
+        <div class="label red">Now Serving</div>
+        <div class="value red" id="currentToken">----</div>
+      </div>
+
+      <div class="metric">
+        <div class="label blue">Served</div>
+        <div class="value blue" id="totalCalled">0000</div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="recallBtn" class="btn blue">Recall</button>
+      <button id="nextBtn" class="btn green">Next</button>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script src="renderer.js"></script>
+
+  <style>
+    html, body {
+      width: 520px;
+      height: 240px;
+      margin: 0;
+      overflow: hidden;
+      font-family: Segoe UI, Arial, sans-serif;
+      background: #f8fafc;
+    }
+    .card {
+      width: 500px;
+      height: 220px;
+      margin: 10px;
+      padding: 10px 14px;
+      box-sizing: border-box;
+      border-radius: 14px;
+      background: white;
+      border: 2px solid #e5e7eb;
+      position: relative;
+    }
+    .title {
+      text-align: center;
+      font-weight: 800;
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+    .top {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .metric { text-align: center; }
+    .label { font-size: 15px; font-weight: 800; }
+    .value { font-size: 40px; font-weight: 900; letter-spacing: 2px; margin-top: 2px; }
+
+    .blue { color: #1e49d6; }
+    .green { color: #1a7a2e; }
+    .red { color: #c92020; }
+
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 0 4px;
+    }
+    .btn {
+      flex: 1;
+      height: 56px;
+      font-size: 18px;
+      font-weight: 900;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 12px;
+    }
+    .btn.blue { background: #1e49d6; }
+    .btn.green { background: #1a7a2e; }
+
+    .status {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #333;
+      text-align: center;
+    }
+  </style>
+</body>
