@@ -42,7 +42,6 @@ Thumbs.db
 # =========================
 # Runtime / local config
 # =========================
-config.ini
 .env
 .env.*
 Token-Management-System/
