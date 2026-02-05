@@ -1,7 +1,7 @@
 const { ipcRenderer } = require("electron");
 const dgram = require("dgram");
 
-let baseUrl = "http://172.16.0.165:8032";
+let baseUrl = "http://172.16.0.162:8032";
 const DISCOVERY_PORT = 9999;
 
 // ✅ set your nursing station identity here

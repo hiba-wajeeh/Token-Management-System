@@ -17,7 +17,7 @@ def start_broadcast(http_port: int, interval: float = 3.0):
     ip = _get_local_ip()
 
     payload = {
-        "service": "Reception-QMS",
+        "service": "Test-QMS",
         "port": http_port,
         "ip": ip
     }

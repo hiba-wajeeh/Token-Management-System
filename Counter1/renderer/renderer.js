@@ -2,7 +2,7 @@ const { ipcRenderer } = require("electron");
 const dgram = require("dgram");
 
 
-let baseUrl = "http://172.16.0.175:8032";
+let baseUrl = "http://172.16.0.162:8032";
 const DISCOVERY_PORT = 9999;
 const counter = "Counter1";
 console.log("renderer.js loaded ✅");
