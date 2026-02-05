@@ -9,7 +9,10 @@ function loadConfig() {
     return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
   } catch {
     // default: point to localhost (for testing on same PC)
-    return { serverUrl: "http://127.0.0.1:8032" };
+    return { 
+      serverUrl: "http://127.0.0.1:8032" ,
+      counter: "Counter1"   // default if not set
+    };
   }
 }
 
@@ -34,7 +37,7 @@ function createWindow() {
 
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 
-  // ✅ For production keep this OFF, for debugging turn ON
+  // For production keep this OFF, for debugging turn ON
   // win.webContents.openDevTools({ mode: "detach" });
 }
 

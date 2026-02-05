@@ -2,9 +2,9 @@ const { ipcRenderer } = require("electron");
 const dgram = require("dgram");
 
 
-let baseUrl = "http://172.16.0.162:8032";
+let baseUrl = "http://172.16.0.161:8032";
 const DISCOVERY_PORT = 9999;
-const counter = "Counter1";
+let counter = "Counter1"; // fallback default
 console.log("renderer.js loaded ✅");
 
 
@@ -62,11 +62,14 @@ function startDiscoveryListener() {
 
           // Persist for next launch
           try {
-            await ipcRenderer.invoke("config:set", { serverUrl: baseUrl });
+            const existing = await ipcRenderer.invoke("config:get");
+            await ipcRenderer.invoke("config:set", {
+              ...existing,
+              serverUrl: baseUrl
+            });
           } catch (e) {
             console.log("config:set failed:", e);
           }
-
           refresh();
         }
       } catch {
@@ -134,8 +137,6 @@ async function nextWalkin() {
   }
 }
 
-
-
 async function nextToken() {
   console.log(counter)
 
@@ -191,15 +192,42 @@ async function recallToken() {
     setText("status", "❌ Failed recalling");
   }
 }
+async function loadSavedConfig() {
+  try {
+    const cfg = await ipcRenderer.invoke("config:get");
+
+    if (cfg?.serverUrl) {
+      baseUrl = cfg.serverUrl;
+      console.log("Loaded serverUrl:", baseUrl);
+    }
+
+    if (cfg?.counter) {
+      counter = cfg.counter;
+      console.log("Loaded counter:", counter);
+    }
+
+  } catch (e) {
+    console.log("config:get failed:", e);
+  }
+}
+
+function updateCounterTitle() {
+  const el = document.getElementById("counterTitle");
+  if (!el) return;
+
+  // "Counter3" → "Counter 3"
+  const pretty = counter.replace(/(\D+)(\d+)/, "$1 $2");
+  el.innerText = pretty;
+}
+
 
 document.addEventListener("DOMContentLoaded", async () => {
+  await loadSavedConfig();
+  updateCounterTitle();
   document.getElementById("nextBtn")?.addEventListener("click", nextToken);
   document.getElementById("recallBtn")?.addEventListener("click", recallToken);
   document.getElementById("walkinBtn")?.addEventListener("click", nextWalkin);
 
-
-  // 1) load last saved server ip (fast startup)
-  // await loadSavedServerUrl();
 
   // 2) listen for auto-discovery (auto switch)
   startDiscoveryListener();
