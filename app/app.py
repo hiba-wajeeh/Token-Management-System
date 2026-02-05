@@ -65,131 +65,6 @@ GREEN = "#16a34a"
 GREEN_DARK = "#0f7a35"
 BORDER = "#d1d5db"
 
-from PyQt5.QtWidgets import QDialog
-
-class VisitTypeDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.choice = "walkin"
-
-        # BIG tablet-friendly size
-        self.setModal(True)
-        self.setFixedSize(900, 520)
-
-        self.setStyleSheet("""
-            QDialog {
-                background: white;
-                border-radius: 22px;
-            }
-            QFrame#card {
-                background: #f8fafc;
-                border: 2px solid #e2e8f0;
-                border-radius: 22px;
-            }
-            QLabel#q_en {
-                font-size: 44px;
-                font-weight: 900;
-                color: #0f172a;
-            }
-            QLabel#q_ur {
-                font-size: 42px;
-                font-weight: 900;
-                color: #0f172a;
-            }
-            QLabel#q_ar {
-                font-size: 42px;
-                font-weight: 900;
-                color: #0f172a;
-            }
-            QPushButton {
-                font-size: 34px;
-                font-weight: 900;
-                padding: 20px 22px;
-                border-radius: 22px;
-                border: 3px solid #e2e8f0;
-            }
-            QPushButton#yesBtn {
-                background: #16a34a;
-                color: white;
-                border: 3px solid #16a34a;
-            }
-            QPushButton#yesBtn:hover { background: #15803d; border-color: #15803d; }
-            QPushButton#noBtn {
-                background: white;
-                color: #0f7a35;
-                border: 3px solid #0f7a35;
-            }
-            QPushButton#noBtn:hover { background: #f0fdf4; }
-        """)
-
-        root = QVBoxLayout(self)
-        root.setContentsMargins(26, 26, 26, 26)
-        root.setSpacing(18)
-
-        card = QFrame()
-        card.setObjectName("card")
-        cardLay = QVBoxLayout(card)
-        cardLay.setContentsMargins(28, 28, 28, 28)
-        cardLay.setSpacing(18)
-        cardLay.setAlignment(Qt.AlignCenter)
-
-        # BIG question text (3 lines)
-        q_en = QLabel("Do you have an appointment?")
-        q_en.setObjectName("q_en")
-        q_en.setAlignment(Qt.AlignCenter)
-
-        q_ur = QLabel("کیا آپ کی اپائنٹمنٹ ہے؟")
-        q_ur.setObjectName("q_ur")
-        q_ur.setAlignment(Qt.AlignCenter)
-
-        q_ar = QLabel("هل لديك موعد؟")
-        q_ar.setObjectName("q_ar")
-        q_ar.setAlignment(Qt.AlignCenter)
-
-        cardLay.addWidget(q_en)
-        cardLay.addWidget(q_ur)
-        cardLay.addWidget(q_ar)
-
-        # HUGE buttons row
-        btnRow = QHBoxLayout()
-        btnRow.setSpacing(18)
-
-        yesBtn = QPushButton("Yes / ہاں / نعم")
-        yesBtn.setObjectName("yesBtn")
-        yesBtn.setCursor(Qt.PointingHandCursor)
-        yesBtn.setMinimumHeight(120)
-
-        noBtn = QPushButton("No / نہیں / لا")
-        noBtn.setObjectName("noBtn")
-        noBtn.setCursor(Qt.PointingHandCursor)
-        noBtn.setMinimumHeight(120)
-
-        yesBtn.clicked.connect(self._choose_yes)
-        noBtn.clicked.connect(self._choose_no)
-
-        btnRow.addWidget(yesBtn, 1)
-        btnRow.addWidget(noBtn, 1)
-
-        cardLay.addSpacing(10)
-        cardLay.addLayout(btnRow)
-
-        root.addWidget(card)
-
-    def _choose_yes(self):
-        self.choice = "appointment"
-        self.accept()
-
-    def _choose_no(self):
-        self.choice = "walkin"
-        self.accept()
-
-
-# Replace your ask_visit_type with this
-def ask_visit_type(self) -> str:
-    dlg = VisitTypeDialog(self)
-    dlg.exec_()
-    return dlg.choice
-
 class TabletUI(QWidget):
     statusChanged = pyqtSignal(str)
 
@@ -201,10 +76,7 @@ class TabletUI(QWidget):
         self.setStyleSheet("background: white;")
         self.last_announced = {}      # per-counter
         self.last_recall_seq = 0      # stable baseline
-
-
-        # Full screen kiosk
-        self.showFullScreen()
+        self._mode = "choose_service"  # or "doctor_appointment"
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -248,9 +120,9 @@ class TabletUI(QWidget):
             logo.setPixmap(pixmap.scaledToHeight(200, Qt.SmoothTransformation))
         logo.setStyleSheet("background: transparent;")
 
-        header = QLabel("Reception")
-        header.setAlignment(Qt.AlignCenter)
-        header.setStyleSheet("""
+        self.header = QLabel("Reception")
+        self.header.setAlignment(Qt.AlignCenter)
+        self.header.setStyleSheet("""
             QLabel {
                 color: white;
                 font-size: 58px;
@@ -258,9 +130,9 @@ class TabletUI(QWidget):
             }
         """)
 
-        sub = QLabel("Tap to print your token")
-        sub.setAlignment(Qt.AlignCenter)
-        sub.setStyleSheet("""
+        self.sub = QLabel("Tap to select service")
+        self.sub.setAlignment(Qt.AlignCenter)
+        self.sub.setStyleSheet("""
             QLabel {
                 color: rgba(255,255,255,0.95);
                 font-size: 26px;
@@ -268,15 +140,16 @@ class TabletUI(QWidget):
             }
         """)
 
-        self.printBtn = QPushButton(
-            "PRINT TOKEN\n"
-            "ٹوکن پرنٹ کریں\n"
-            "اطبع التذكرة"
+        # Main doctor button (was PRINT TOKEN)
+        self.doctorBtn = QPushButton(
+            "DOCTOR\n"
+            "ڈاکٹر\n"
+            "طبيب"
         )
-        self.printBtn.setMinimumHeight(140)
-        self.printBtn.setMinimumWidth(560)
-        self.printBtn.setCursor(Qt.PointingHandCursor)
-        self.printBtn.setStyleSheet(f"""
+        self.doctorBtn.setMinimumHeight(140)
+        self.doctorBtn.setMinimumWidth(560)
+        self.doctorBtn.setCursor(Qt.PointingHandCursor)
+        self.doctorBtn.setStyleSheet(f"""
             QPushButton {{
                 background: white;
                 color: {GREEN_DARK};
@@ -286,44 +159,79 @@ class TabletUI(QWidget):
                 font-weight: 900;
             }}
         """)
-        self.printBtn.clicked.connect(self.print_token)
+        self.doctorBtn.clicked.connect(self._start_doctor_flow)
+
+        # Secondary lab button
+        self.labBtn = QPushButton(
+            "LAB\n"
+            "لیب\n"
+            "مختبر"
+        )
+        self.labBtn.setMinimumHeight(120)
+        self.labBtn.setMinimumWidth(420)
+        self.labBtn.setCursor(Qt.PointingHandCursor)
+        self.labBtn.setStyleSheet(f"""
+            QPushButton {{
+                background: rgba(255,255,255,0.08);
+                color: white;
+                border: 3px solid rgba(255,255,255,0.55);
+                border-radius: 22px;
+                font-size: 30px;
+                font-weight: 800;
+            }}
+            QPushButton:hover {{
+                background: rgba(255,255,255,0.14);
+            }}
+        """)
+        self.labBtn.clicked.connect(self._print_lab)
 
         center.addWidget(logo)
-        center.addWidget(header)
-        center.addWidget(sub)
-        center.addWidget(self.printBtn)
+        center.addWidget(self.header)
+        center.addWidget(self.sub)
+        center.addWidget(self.doctorBtn)
+        center.addWidget(self.labBtn)
 
         topLay.addLayout(center)
         root.addWidget(top)
+
+        # Show main window full-screen
+        self.showFullScreen()
 
         # ---- polling for audio ----
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.poll_audio)
         self.timer.start(1500)
     # ===================== PRINT =====================
-    def ask_visit_type(self) -> str:
-        dlg = VisitTypeDialog(self)
-        dlg.exec_()
-        return dlg.choice
-    def set_printing_state(self, printing: bool):
-            if printing:
-                self.printBtn.setEnabled(False)
-                self.printBtn.setText("PRINTING…\nپرنٹ ہو رہا ہے…")
-            else:
-                self.printBtn.setEnabled(True)
-                self.printBtn.setText(
-                    "PRINT TOKEN\n"
-                    "ٹوکن پرنٹ کریں\n"
-                    "اطبع التذكرة"
-                )
-    def print_token(self):
+    # Inline doctor/lab and appointment flow
+    def _set_printing_state(self, printing: bool):
+        if printing:
+            self.doctorBtn.setEnabled(False)
+            self.labBtn.setEnabled(False)
+            self.doctorBtn.setText("PRINTING…\nپرنٹ ہو رہا ہے…")
+        else:
+            # Reset to initial doctor/lab view
+            self._mode = "choose_service"
+            self.header.setText("Reception")
+            self.sub.setText("Tap to select service")
+            self.doctorBtn.setEnabled(True)
+            self.labBtn.setEnabled(True)
+            self.doctorBtn.setText(
+                "DOCTOR\n"
+                "ڈاکٹر\n"
+                "طبيب"
+            )
+            self.labBtn.setText(
+                "LAB\n"
+                "لیب\n"
+                "مختبر"
+            )
+
+    def _do_print(self, visit_type: str):
         if not SERVER_BASE:
             print("❌ Server not discovered yet")
             return
 
-        visit_type = self.ask_visit_type()  # "appointment" or "walkin"
-
-        self.set_printing_state(True)
+        self._set_printing_state(True)
 
         try:
             r = requests.post(
@@ -332,7 +240,7 @@ class TabletUI(QWidget):
                 timeout=3
             )
             data = r.json()
-            token_no = data.get("token_no")
+            token_no = data.json().get("token_no") if hasattr(data, "json") else data.get("token_no")
 
             if token_no:
                 print_token(PRINTER_NAME, token_no, "welfare")
@@ -341,7 +249,38 @@ class TabletUI(QWidget):
             print("Print failed:", e)
 
         finally:
-            QTimer.singleShot(1200, lambda: self.set_printing_state(False))
+            QTimer.singleShot(1200, lambda: self._set_printing_state(False))
+
+    def _start_doctor_flow(self):
+        """Switch UI to ask appointment question for doctor, inline."""
+        if self._mode != "choose_service":
+            return
+        self._mode = "doctor_appointment"
+        self.header.setText("Doctor")
+        self.sub.setText("Do you have an appointment?\nکیا آپ کی اپائنٹمنٹ ہے؟\nهل لديك موعد؟")
+
+        # Reuse the two main buttons as Yes / No
+        self.doctorBtn.setText("Yes / ہاں / نعم")
+        self.labBtn.setText("No / نہیں / لا")
+
+        # Update connections for this mode
+        try:
+            self.doctorBtn.clicked.disconnect()
+        except TypeError:
+            pass
+        try:
+            self.labBtn.clicked.disconnect()
+        except TypeError:
+            pass
+
+        self.doctorBtn.clicked.connect(lambda: self._do_print("appointment"))
+        self.labBtn.clicked.connect(lambda: self._do_print("walkin"))
+
+    def _print_lab(self):
+        """Immediate print for Lab (no appointment question)."""
+        if self._mode != "choose_service":
+            return
+        self._do_print("walkin")
 
         # ===================== AUDIO =====================
 
