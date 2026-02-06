@@ -247,8 +247,17 @@ class TabletUI(QWidget):
             self.sub.setText("Tap to select service")
             self.doctorBtn.setEnabled(True)
             self.labBtn.setEnabled(True)
+            self.doctorBtn.show()
+            self.labBtn.show()
             self.printBtn.setEnabled(True)
+            self.printBtn.setText(
+                "PRINT TOKEN\n"
+                "ٹوکن پرنٹ کریں\n"
+                "اطبع التذكرة"
+            )
             self.printBtn.hide()
+
+            # Restore original button texts
             self.doctorBtn.setText(
                 "DOCTOR\n"
                 "ڈاکٹر\n"
@@ -259,6 +268,23 @@ class TabletUI(QWidget):
                 "لیب\n"
                 "مختبر"
             )
+
+            # Restore original click handlers
+            try:
+                self.doctorBtn.clicked.disconnect()
+            except TypeError:
+                pass
+            try:
+                self.labBtn.clicked.disconnect()
+            except TypeError:
+                pass
+            try:
+                self.printBtn.clicked.disconnect()
+            except TypeError:
+                pass
+
+            self.doctorBtn.clicked.connect(self._start_doctor_flow)
+            self.labBtn.clicked.connect(self._print_lab)
 
     def _do_print(self, visit_type: str):
         if not SERVER_BASE:
@@ -322,6 +348,11 @@ class TabletUI(QWidget):
         # Hide doctor/lab buttons and show print button
         self.doctorBtn.hide()
         self.labBtn.hide()
+        self.printBtn.setText(
+            "PRINT TOKEN\n"
+            "ٹوکن پرنٹ کریں\n"
+            "اطبع التذكرة"
+        )
         self.printBtn.show()
 
         try:
