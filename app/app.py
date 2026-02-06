@@ -274,7 +274,7 @@ class TabletUI(QWidget):
                 timeout=3
             )
             data = r.json()
-            token_no = data.json().get("token_no") if hasattr(data, "json") else data.get("token_no")
+            token_no = data.get("token_no")
 
             if token_no:
                 print_token(PRINTER_NAME, token_no, "welfare")
@@ -328,7 +328,7 @@ class TabletUI(QWidget):
             self.printBtn.clicked.disconnect()
         except TypeError:
             pass
-        self.printBtn.clicked.connect(lambda: self._do_print("walkin"))
+        self.printBtn.clicked.connect(lambda: self._do_print("lab"))
 
         # ===================== AUDIO =====================
 

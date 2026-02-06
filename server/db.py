@@ -43,7 +43,7 @@ def connect():
     )
 
 
-def init_db(conn, appt_start: int, walkin_start: int):
+def init_db(conn, appt_start: int, walkin_start: int, lab_start: int):
     cur = conn.cursor()
 
     # ------------------ state table ------------------
@@ -54,7 +54,8 @@ def init_db(conn, appt_start: int, walkin_start: int):
         recall_seq INTEGER NOT NULL DEFAULT 0,
         last_recall_counter TEXT,
         next_appt_token INTEGER NOT NULL,
-        next_walkin_token INTEGER NOT NULL
+        next_walkin_token INTEGER NOT NULL,
+        next_lab_token INTEGER NOT NULL
     )
     """)
 
@@ -84,6 +85,7 @@ def init_db(conn, appt_start: int, walkin_start: int):
     cur.execute("ALTER TABLE tokens ADD COLUMN IF NOT EXISTS stage TEXT NOT NULL DEFAULT 'reception'")
     cur.execute("ALTER TABLE tokens ADD COLUMN IF NOT EXISTS served_at TIMESTAMP")
     cur.execute("ALTER TABLE tokens ADD COLUMN IF NOT EXISTS transferred_at TIMESTAMP")
+    cur.execute("ALTER TABLE state ADD COLUMN IF NOT EXISTS next_lab_token INTEGER")
 
 
     # ------------------ ensure single state row ------------------
@@ -92,13 +94,16 @@ def init_db(conn, appt_start: int, walkin_start: int):
     row = cur.fetchone()
     if row["count"] == 0:
         cur.execute("""
-            INSERT INTO state (id, session_date, next_appt_token, next_walkin_token)
-            VALUES (1, %s, %s, %s)
-        """, (date.today(), appt_start, walkin_start))
+            INSERT INTO state (id, session_date, next_appt_token, next_walkin_token, next_lab_token)
+            VALUES (1, %s, %s, %s, %s)
+        """, (date.today(), appt_start, walkin_start, lab_start))
+    else:
+        # Backfill for older DBs that don't have lab counter yet
+        cur.execute("UPDATE state SET next_lab_token = COALESCE(next_lab_token, %s) WHERE id = 1", (lab_start,))
 
     conn.commit()
 
-def daily_cleanup_if_needed(conn, appt_start: int, walkin_start: int):
+def daily_cleanup_if_needed(conn, appt_start: int, walkin_start: int, lab_start: int):
     cur = conn.cursor()
 
     cur.execute("SELECT session_date FROM state WHERE id = 1")
@@ -116,23 +121,34 @@ def daily_cleanup_if_needed(conn, appt_start: int, walkin_start: int):
             UPDATE state
             SET session_date = %s,
                 next_appt_token = %s,
-                next_walkin_token = %s
+                next_walkin_token = %s,
+                next_lab_token = %s
             WHERE id = 1
-        """, (today, appt_start, walkin_start))
+        """, (today, appt_start, walkin_start, lab_start))
 
         conn.commit()
         return True
 
     return False
 
-def create_token_atomic(conn, dept, visit_type, appt_start, walkin_start):
+def create_token_atomic(conn, dept, visit_type, appt_start, walkin_start, lab_start):
     vt = (visit_type or "walkin").lower().strip()
-    if vt not in ("appointment", "walkin"):
+    if vt not in ("appointment", "walkin", "lab"):
         vt = "walkin"
 
-    priority = 1 if vt == "appointment" else 2
-    col = "next_appt_token" if vt == "appointment" else "next_walkin_token"
-    fallback_start = appt_start if vt == "appointment" else walkin_start
+    if vt == "appointment":
+        priority = 1
+        col = "next_appt_token"
+        fallback_start = appt_start
+    elif vt == "walkin":
+        priority = 2
+        col = "next_walkin_token"
+        fallback_start = walkin_start
+    else:
+        # lab = first-come-first-serve within its own range
+        priority = 3
+        col = "next_lab_token"
+        fallback_start = lab_start
 
     cur = conn.cursor()
 
