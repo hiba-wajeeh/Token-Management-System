@@ -22,6 +22,15 @@ from audio import announce_token
 DISCOVERY_PORT = 9999
 SERVER_BASE = None   # filled dynamically
 
+import socket
+
+def is_local_server_running(port=8032):
+    try:
+        s = socket.create_connection(("127.0.0.1", port), timeout=0.5)
+        s.close()
+        return True
+    except:
+        return False
 
 def listen_for_server():
     global SERVER_BASE
@@ -332,7 +341,13 @@ class TabletUI(QWidget):
             print("poll_audio error:", e)
 
 if __name__ == "__main__":
-    threading.Thread(target=listen_for_server, daemon=True).start()
+    # ✅ 1) Try localhost first (same PC)
+    if is_local_server_running(8032):
+        SERVER_BASE = "http://127.0.0.1:8032"
+        print("✅ Local server detected directly:", SERVER_BASE)
+    else:
+        # ✅ 2) If not local, then listen for UDP discovery (tablets / other PCs)
+        threading.Thread(target=listen_for_server, daemon=True).start()
 
     app = QApplication(sys.argv)
     app.setFont(QFont("Segoe UI", 10))

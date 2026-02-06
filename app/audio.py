@@ -5,6 +5,9 @@ import os
 import sys
 import re
 
+IS_WINDOWS = sys.platform.startswith("win")
+IS_MAC = sys.platform == "darwin"
+
 # ✅ Safe import for SAPI
 try:
     import win32com.client
@@ -59,57 +62,86 @@ def _run_powershell_blocking(ps_cmd: str):
     )
 
 def _tts_blocking(text: str):
-    if _init_sapi_voice():
-        with _sapi_lock:
-            _sapi_voice.Volume = 100
-            _sapi_voice.Rate = 0
+    # -------- Windows (SAPI) --------
+    if IS_WINDOWS:
+        if _init_sapi_voice():
+            with _sapi_lock:
+                _sapi_voice.Volume = 100
+                _sapi_voice.Rate = 0
+                _sapi_voice.Speak(text, 0)   # blocking
+                _sapi_voice.WaitUntilDone(-1)
+            return
 
-            # ✅ IMPORTANT: 0 = synchronous (blocking)
-            _sapi_voice.Speak(text, 0)
-
-            # ✅ extra safety: wait until speech is fully done
-            _sapi_voice.WaitUntilDone(-1)
+        # PowerShell fallback (still blocking)
+        text_ps = _ps_escape(text)
+        ps_cmd = (
+            "Add-Type -AssemblyName System.Speech; "
+            "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+            "$s.Volume = 100; "
+            "$s.Rate = 0; "
+            f"$s.Speak('{text_ps}');"
+        )
+        _run_powershell_blocking(ps_cmd)
         return
 
-    # fallback PowerShell (already blocking)
-    text_ps = _ps_escape(text)
-    ps_cmd = (
-        "Add-Type -AssemblyName System.Speech; "
-        "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
-        "$s.Volume = 100; "
-        "$s.Rate = 0; "
-        f"$s.Speak('{text_ps}');"
-    )
-    _run_powershell_blocking(ps_cmd)
+    # -------- macOS --------
+    if IS_MAC:
+        # `say` is blocking by default
+        subprocess.run(
+            ["say", text],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return
+
+    # -------- Fallback --------
+    print("[TTS]", text)
 
 def _play_audio_blocking(path: str):
     p = os.path.abspath(path)
-    p_ps = _ps_escape(p)
-    ext = os.path.splitext(p)[1].lower()
 
-    if ext == ".wav":
+    # -------- Windows --------
+    if IS_WINDOWS:
+        p_ps = _ps_escape(p)
+        ext = os.path.splitext(p)[1].lower()
+
+        if ext == ".wav":
+            ps_cmd = (
+                "Add-Type -AssemblyName System.Media; "
+                f"$p = '{p_ps}'; "
+                "if (Test-Path $p) { "
+                "$sp = New-Object System.Media.SoundPlayer($p); "
+                "$sp.PlaySync(); "
+                "} "
+            )
+            _run_powershell_blocking(ps_cmd)
+            return
+
         ps_cmd = (
-            "Add-Type -AssemblyName System.Media; "
             f"$p = '{p_ps}'; "
             "if (Test-Path $p) { "
-            "$sp = New-Object System.Media.SoundPlayer($p); "
-            "$sp.PlaySync(); "
+            "$w = New-Object -ComObject WMPlayer.OCX; "
+            "$w.settings.autoStart = $true; "
+            "$w.URL = $p; "
+            "$w.controls.play(); "
+            "while ($w.playState -ne 1) { Start-Sleep -Milliseconds 80 } "
             "} "
         )
         _run_powershell_blocking(ps_cmd)
         return
 
-    ps_cmd = (
-        f"$p = '{p_ps}'; "
-        "if (Test-Path $p) { "
-        "$w = New-Object -ComObject WMPlayer.OCX; "
-        "$w.settings.autoStart = $true; "
-        "$w.URL = $p; "
-        "$w.controls.play(); "
-        "while ($w.playState -ne 1) { Start-Sleep -Milliseconds 80 } "
-        "} "
-    )
-    _run_powershell_blocking(ps_cmd)
+    # -------- macOS --------
+    if IS_MAC:
+        # afplay is native, blocking, perfect for queues
+        subprocess.run(
+            ["afplay", p],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return
+
+    # -------- Fallback --------
+    print("[AUDIO]", p)
 
 def _audio_worker():
     while True:

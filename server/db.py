@@ -33,7 +33,7 @@ def wal_checkpoint_truncate(conn: sqlite3.Connection):
 
 def connect():
     return psycopg.connect(
-        host=PG_HOST,
+        hostaddr=PG_HOST,   #  FORCE IPv4, bypass DNS/IPv6
         port=PG_PORT,
         dbname=PG_DB,
         user=PG_USER,
