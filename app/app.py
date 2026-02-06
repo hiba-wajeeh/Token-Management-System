@@ -194,11 +194,33 @@ class TabletUI(QWidget):
         """)
         self.labBtn.clicked.connect(self._print_lab)
 
+        # Hidden print button used after choosing Lab
+        self.printBtn = QPushButton(
+            "PRINT TOKEN\n"
+            "ٹوکن پرنٹ کریں\n"
+            "اطبع التذكرة"
+        )
+        self.printBtn.setMinimumHeight(140)
+        self.printBtn.setMinimumWidth(560)
+        self.printBtn.setCursor(Qt.PointingHandCursor)
+        self.printBtn.setStyleSheet(f"""
+            QPushButton {{
+                background: white;
+                color: {GREEN_DARK};
+                border: 4px solid rgba(255,255,255,0.7);
+                border-radius: 26px;
+                font-size: 34px;
+                font-weight: 900;
+            }}
+        """)
+        self.printBtn.hide()
+
         center.addWidget(logo)
         center.addWidget(self.header)
         center.addWidget(self.sub)
         center.addWidget(self.doctorBtn)
         center.addWidget(self.labBtn)
+        center.addWidget(self.printBtn)
 
         topLay.addLayout(center)
         root.addWidget(top)
@@ -216,7 +238,8 @@ class TabletUI(QWidget):
         if printing:
             self.doctorBtn.setEnabled(False)
             self.labBtn.setEnabled(False)
-            self.doctorBtn.setText("PRINTING…\nپرنٹ ہو رہا ہے…")
+            self.printBtn.setEnabled(False)
+            self.printBtn.setText("PRINTING…\nپرنٹ ہو رہا ہے…")
         else:
             # Reset to initial doctor/lab view
             self._mode = "choose_service"
@@ -224,6 +247,8 @@ class TabletUI(QWidget):
             self.sub.setText("Tap to select service")
             self.doctorBtn.setEnabled(True)
             self.labBtn.setEnabled(True)
+            self.printBtn.setEnabled(True)
+            self.printBtn.hide()
             self.doctorBtn.setText(
                 "DOCTOR\n"
                 "ڈاکٹر\n"
@@ -286,10 +311,24 @@ class TabletUI(QWidget):
         self.labBtn.clicked.connect(lambda: self._do_print("walkin"))
 
     def _print_lab(self):
-        """Immediate print for Lab (no appointment question)."""
+        """Lab flow: hide doctor/lab, show single PRINT TOKEN button."""
         if self._mode != "choose_service":
             return
-        self._do_print("walkin")
+        self._mode = "lab_confirm"
+
+        self.header.setText("Lab")
+        self.sub.setText("Tap to print your lab token")
+
+        # Hide doctor/lab buttons and show print button
+        self.doctorBtn.hide()
+        self.labBtn.hide()
+        self.printBtn.show()
+
+        try:
+            self.printBtn.clicked.disconnect()
+        except TypeError:
+            pass
+        self.printBtn.clicked.connect(lambda: self._do_print("walkin"))
 
         # ===================== AUDIO =====================
 
