@@ -38,6 +38,19 @@ PG_BIN="$BREW_PG18_PREFIX/bin"
 PSQL="$PG_BIN/psql"
 CREATEUSER="$PG_BIN/createuser"
 
+# ---------- Ensure data directory exists (initdb if missing) ----------
+PG_DATA="/opt/homebrew/var/postgresql@18"
+
+info "Ensuring PostgreSQL data directory exists at: $PG_DATA"
+if [[ ! -d "$PG_DATA" ]]; then
+  warn "Postgres data directory not found. Initializing cluster (initdb)..."
+  mkdir -p "$PG_DATA"
+  "$PG_BIN/initdb" --locale=en_US.UTF-8 -E UTF-8 "$PG_DATA"
+  ok "Initialized Postgres cluster"
+else
+  ok "Postgres data directory exists"
+fi
+
 if [[ ! -x "$PSQL" ]]; then
   echo "❌ psql not found at: $PSQL"
   echo "Check: brew info postgresql@18"
@@ -122,6 +135,7 @@ fi
 info "Creating qms_test database and qms_test_user (idempotent)..."
 
 "$PSQL" -h 127.0.0.1 -p 5432 -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+-- Create role if missing (allowed inside DO)
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'qms_test_user') THEN
@@ -129,13 +143,11 @@ BEGIN
   END IF;
 END $$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'qms_test') THEN
-    CREATE DATABASE qms_test OWNER qms_test_user;
-  END IF;
-END $$;
+-- Create database if missing (MUST be top-level, not inside DO)
+SELECT 'CREATE DATABASE qms_test OWNER qms_test_user'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'qms_test') \gexec
 SQL
+
 
 # Schema grants + default privileges in the qms_test db
 "$PSQL" -h 127.0.0.1 -p 5432 -d qms_test -v ON_ERROR_STOP=1 <<'SQL'
@@ -191,9 +203,9 @@ source "$ROOT_DIR/.venv/bin/activate"
 
 python -m pip install --upgrade pip >/dev/null
 
-if [[ -f "$ROOT_DIR/requirements.txt" ]]; then
+if [[ -f "$ROOT_DIR/requirements-macos.txt" ]]; then
   info "Installing Python requirements..."
-  pip install -r "$ROOT_DIR/requirements.txt"
+  pip install -r "$ROOT_DIR/requirements-macos.txt"
   ok "Python deps installed"
 else
   warn "requirements.txt not found at repo root. Skipping pip install."
