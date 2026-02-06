@@ -153,17 +153,6 @@ Token-Management-System/
 ```
 
 ---
-
-## Reset Database (Development Only)
-
-⚠️ This deletes all tokens and data.
-
-```bash
-./scripts/reset_db_mac.sh
-```
-
----
-
 ## Common Issues
 
 ### PostgreSQL port 5432 already in use
