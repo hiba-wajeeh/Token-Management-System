@@ -38,7 +38,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class PrintBody(BaseModel):
     dept: str = "welfare"
-    visit_type: Literal["appointment", "walkin"] = "walkin"
+    visit_type: Literal["appointment", "walkin", "lab"] = "walkin"
 
 class CallNextBody(BaseModel):
     dept: str = "welfare"
@@ -61,9 +61,9 @@ def startup():
     # ✅ init db once at boot (tables/state/indexes)
     conn = db.connect()
     try:
-        db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
+        db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
         db.create_indexes(conn)   # <-- Step 3 adds this function
-        db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
+        db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
     finally:
         conn.close()
 
@@ -95,21 +95,23 @@ def nursing_page():
 
 APPT_START = 1001
 WALKIN_START = 2001
+LAB_START = 3001
 
 @app.post("/api/print-token")
 def api_print_token(body: PrintBody):
     conn = db.connect()
     try:
         # init + daily cleanup must reset BOTH counters now
-        db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
-        db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
+        db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
+        db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
 
         token_no = db.create_token_atomic(
             conn,
             dept=body.dept,
             visit_type=body.visit_type,
             appt_start=APPT_START,
-            walkin_start=WALKIN_START
+            walkin_start=WALKIN_START,
+            lab_start=LAB_START
         )
         return {"token_no": token_no, "dept": body.dept, "visit_type": body.visit_type}
     finally:
@@ -127,8 +129,8 @@ def api_call_next(body: CallNextBody):
     """
     conn = db.connect()
     try:
-        db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
-        db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
+        db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
+        db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
 
         if body.stage == "reception":
             # move previous token to nursing queue
@@ -160,7 +162,7 @@ def api_recall_last(body: RecallBody):
     """
     conn = db.connect()
     try:
-        db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
+        db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
 
         last = db.get_last_called(conn, body.dept, stage=body.stage)
         if not last:
@@ -218,8 +220,8 @@ def api_status(dept: str = "welfare", stage: str = "reception"):
 def api_queue(dept: str = "welfare", stage: str = "reception"):
     conn = db.connect()
     try:
-        db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
-        db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START)
+        db.init_db(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
+        db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
         return db.get_queue(conn, dept, stage=stage)
     finally:
         conn.close()
