@@ -42,13 +42,14 @@ class PrintBody(BaseModel):
 
 class CallNextBody(BaseModel):
     dept: str = "welfare"
-    stage: Literal["reception", "nursing"] = "reception"
+    stage: Literal["reception", "nursing", "lab"] = "reception"
     counter: str = "Counter1"
     mode: Literal["auto", "appointment", "walkin"] = "auto"
+    dest_stage: Literal["nursing", "lab"] | None = None
 
 class RecallBody(BaseModel):
     dept: str = "welfare"
-    stage: Literal["reception", "nursing"] = "reception"
+    stage: Literal["reception", "nursing", "lab"] = "reception"
     counter: str | None = None
 
 # ------------------ startup ------------------
@@ -133,13 +134,16 @@ def api_call_next(body: CallNextBody):
         db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
 
         if body.stage == "reception":
-            # move previous token to nursing queue
+            # move previous token from reception to chosen next stage (nursing or lab)
+            to_stage = body.dest_stage or "nursing"
+            if to_stage not in ("nursing", "lab"):
+                to_stage = "nursing"
             db.transfer_last_called_to_stage(
                 conn,
                 dept=body.dept,
                 counter=body.counter,
                 from_stage="reception",
-                to_stage="nursing"
+                to_stage=to_stage
             )
         else:
             # nursing: finish previous one so it disappears
@@ -198,6 +202,8 @@ def api_status(dept: str = "welfare", stage: str = "reception"):
 
         if stage == "nursing":
             counters = ["Nurse1"]
+        elif stage == "lab":
+            counters = ["Lab1"]
         else:
             counters = ["Counter1", "Counter2", "Counter3", "Counter4"]
 
@@ -208,8 +214,9 @@ def api_status(dept: str = "welfare", stage: str = "reception"):
             "stage": stage,
             "recall_seq": row["recall_seq"] if row else 0,
             "recall_counter": row["last_recall_counter"] if row else None,
-            "nursing_recall_seq": (NURSING_RECALL_SEQ if stage == "nursing" else 0),
-            "nursing_recall_counter": (LAST_NURSING_RECALL_COUNTER if stage == "nursing" else None),
+            # Expose nursing-style recall info for both nursing and lab stages
+            "nursing_recall_seq": (NURSING_RECALL_SEQ if stage in ("nursing", "lab") else 0),
+            "nursing_recall_counter": (LAST_NURSING_RECALL_COUNTER if stage in ("nursing", "lab") else None),
             "serving": serving
         }
     finally:
