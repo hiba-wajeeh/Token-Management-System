@@ -140,15 +140,18 @@ def create_token_atomic(conn, dept, visit_type, appt_start, walkin_start, lab_st
         priority = 1
         col = "next_appt_token"
         fallback_start = appt_start
+        stage = "reception"
     elif vt == "walkin":
         priority = 2
         col = "next_walkin_token"
         fallback_start = walkin_start
+        stage = "reception"
     else:
-        # lab = first-come-first-serve within its own range
+        # lab = first-come-first-serve within its own range, in LAB stage
         priority = 3
         col = "next_lab_token"
         fallback_start = lab_start
+        stage = "lab"
 
     cur = conn.cursor()
 
@@ -167,7 +170,7 @@ def create_token_atomic(conn, dept, visit_type, appt_start, walkin_start, lab_st
     cur.execute("""
         INSERT INTO tokens (token_no, dept, stage, priority, status, created_at)
         VALUES (%s, %s, %s, %s, 'WAITING', %s)
-    """, (next_no, dept, 'reception', priority, now))
+    """, (next_no, dept, stage, priority, now))
 
     cur.execute(f"""
         UPDATE state
@@ -202,6 +205,19 @@ def call_next_atomic(conn, dept, counter, visit_type=None, stage: str = 'recepti
             FOR UPDATE
         """
         params = (dept, stage)
+    elif stage == "lab":
+        sql = """
+            SELECT id, token_no
+            FROM tokens
+            WHERE dept=%s
+            AND stage='lab'
+            AND status='WAITING'
+            ORDER BY created_at ASC
+            LIMIT 1
+            FOR UPDATE
+        """
+        params = (dept,)
+
     else:
         if stage == "nursing":
             sql = """

@@ -117,10 +117,17 @@ async function refresh() {
 
 async function nextWalkin() {
   try {
+    // Decide where to send the current token (if any) after reception
+    const dest_stage = await chooseDestinationForCurrentToken();
+    if (dest_stage === null) {
+      // user cancelled
+      return;
+    }
+
     const res = await fetch(`${baseUrl}/api/call-next`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dept: "welfare", counter, mode: "walkin" })
+      body: JSON.stringify({ dept: "welfare", counter, mode: "walkin", dest_stage })
     });
 
     const data = await res.json();
@@ -141,10 +148,17 @@ async function nextToken() {
   console.log(counter)
 
   try {
+    // Decide where to send the current token (if any) after reception
+    const dest_stage = await chooseDestinationForCurrentToken();
+    if (dest_stage === null) {
+      // user cancelled
+      return;
+    }
+
     const res = await fetch(`${baseUrl}/api/call-next`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dept: "welfare", counter })
+      body: JSON.stringify({ dept: "welfare", counter, dest_stage })
     });
 
     if (!res.ok) {
@@ -191,6 +205,32 @@ async function recallToken() {
     console.log("recallToken error:", e);
     setText("status", "❌ Failed recalling");
   }
+}
+
+async function chooseDestinationForCurrentToken() {
+  const el = document.getElementById("currentToken");
+  if (!el) return "nursing";
+  const raw = (el.innerText || "").trim();
+  const num = parseInt(raw, 10);
+
+  if (!Number.isFinite(num)) {
+    // no valid current token yet → default to nursing
+    return "nursing";
+  }
+
+  // Always ask where to send this finished patient
+  const msg =
+    `Token ${num}\n\n` +
+    `Where do you want to send this patient?\n\n` +
+    `OK = Send to NURSING\n` +
+    `Cancel = Send to LAB`;
+
+  const toNursing = window.confirm(msg);
+  // If user closes dialog without choosing, treat as cancel → null
+  if (toNursing === undefined) {
+    return null;
+  }
+  return toNursing ? "nursing" : "lab";
 }
 async function loadSavedConfig() {
   try {
