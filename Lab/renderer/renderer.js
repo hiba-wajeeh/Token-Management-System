@@ -35,7 +35,7 @@ function startDiscoveryListener() {
     sock.on("message", async (msg, rinfo) => {
       try {
         const data = JSON.parse(msg.toString());
-        if (data?.service !== "Reception-QMS") return;
+        if (data?.service !== "Test-QMS") return;
 
         const ip = data.ip || rinfo.address;
         const port = data.port || 8032;

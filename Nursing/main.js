@@ -35,7 +35,7 @@ function createWindow() {
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 
   // ✅ For production keep this OFF, for debugging turn ON
-  // win.webContents.openDevTools({ mode: "detach" });
+  win.webContents.openDevTools({ mode: "detach" });
 }
 
 

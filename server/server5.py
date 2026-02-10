@@ -147,7 +147,7 @@ def api_call_next(body: CallNextBody):
             )
         else:
             # nursing: finish previous one so it disappears
-            db.complete_last_called(conn, dept=body.dept, stage="nursing", counter=body.counter)
+            db.complete_last_called(conn, dept=body.dept, stage=body.stage, counter=body.counter)
 
         token_no = db.call_next_atomic(conn, body.dept, body.counter, body.mode, stage=body.stage)
         if token_no is None:

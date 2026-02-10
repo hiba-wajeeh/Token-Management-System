@@ -205,6 +205,19 @@ def call_next_atomic(conn, dept, counter, visit_type=None, stage: str = 'recepti
             FOR UPDATE
         """
         params = (dept, stage)
+    elif stage == "lab":
+        sql = """
+            SELECT id, token_no
+            FROM tokens
+            WHERE dept=%s
+            AND stage='lab'
+            AND status='WAITING'
+            ORDER BY created_at ASC
+            LIMIT 1
+            FOR UPDATE
+        """
+        params = (dept,)
+
     else:
         if stage == "nursing":
             sql = """
