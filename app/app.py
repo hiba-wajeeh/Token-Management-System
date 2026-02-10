@@ -283,7 +283,7 @@ class TabletUI(QWidget):
             except TypeError:
                 pass
 
-            self.doctorBtn.clicked.connect(self._start_doctor_flow)
+            self.doctorBtn.clicked.connect(self._start_doctor_flow) 
             self.labBtn.clicked.connect(self._print_lab)
 
     def _do_print(self, visit_type: str):
