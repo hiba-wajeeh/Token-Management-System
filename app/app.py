@@ -337,31 +337,12 @@ class TabletUI(QWidget):
         self.labBtn.clicked.connect(lambda: self._do_print("walkin"))
 
     def _print_lab(self):
-        """Lab flow: hide doctor/lab, show single PRINT TOKEN button."""
+        """Lab flow: always walk-in, print immediately."""
         if self._mode != "choose_service":
             return
-        self._mode = "lab_confirm"
 
-        self.header.setText("Lab")
-        self.sub.setText("Tap to print your lab token")
-
-        # Hide doctor/lab buttons and show print button
-        self.doctorBtn.hide()
-        self.labBtn.hide()
-        self.printBtn.setText(
-            "PRINT TOKEN\n"
-            "ٹوکن پرنٹ کریں\n"
-            "اطبع التذكرة"
-        )
-        self.printBtn.show()
-
-        try:
-            self.printBtn.clicked.disconnect()
-        except TypeError:
-            pass
-        self.printBtn.clicked.connect(lambda: self._do_print("lab"))
-
-        # ===================== AUDIO =====================
+        # Directly print as walk-in (no extra UI)
+        self._do_print("lab")
 
     def poll_audio(self):
         if not SERVER_BASE:
