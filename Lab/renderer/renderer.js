@@ -3,6 +3,7 @@ const dgram = require("dgram");
 
 let baseUrl = "http://172.16.0.162:8032";
 const DISCOVERY_PORT = 9999;
+let isCalling = false;
 
 // ✅ set your lab station identity here (own stage)
 const stage = "lab";
@@ -80,6 +81,13 @@ async function refresh() {
 }
 
 async function nextToken() {
+  if (isCalling) return;   // ⛔ block double click
+
+  isCalling = true;
+
+  const btn = document.getElementById("nextBtn");
+  if (btn) btn.disabled = true;
+
   try {
     const res = await fetch(`${baseUrl}/api/call-next`, {
       method: "POST",
@@ -91,17 +99,23 @@ async function nextToken() {
 
     if (data.token_no === null) {
       alert("No waiting tokens in lab queue.");
-      return;
+    } else {
+      localServedCount++;
+      await refresh();
     }
 
-    // Every time Lab presses NEXT, server marks previous CALLED as SERVED, so we increment served count
-    localServedCount++;
-    await refresh();
   } catch (e) {
     console.log("nextToken error:", e);
     setText("status", "❌ Failed calling next token");
   }
+
+  // ⏳ 2 second cooldown
+  setTimeout(() => {
+    isCalling = false;
+    if (btn) btn.disabled = false;
+  }, 2000);
 }
+
 
 async function recallToken() {
   try {
