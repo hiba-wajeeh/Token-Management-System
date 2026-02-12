@@ -144,19 +144,25 @@ def api_call_next(body: CallNextBody):
         db.daily_cleanup_if_needed(conn, appt_start=APPT_START, walkin_start=WALKIN_START, lab_start=LAB_START)
 
         if body.stage == "reception":
-            # move previous token from reception to chosen next stage (nursing or lab)
-            to_stage = body.dest_stage or "nursing"
-            if to_stage not in ("nursing", "lab"):
-                to_stage = "nursing"
+            # Check if the current token starts with 3
+            last_called = db.get_last_called(conn, body.dept, stage="reception")
+            
+            if last_called and last_called["token_no"]:
+                token_str = str(last_called["token_no"])
+                # If token starts with 3 → route to lab, otherwise → nursing
+                to_stage = "lab" if token_str.startswith("3") else "nursing"
+            else:
+                to_stage = "nursing"  # default if no previous token
+            
             db.transfer_last_called_to_stage(
                 conn,
                 dept=body.dept,
                 counter=body.counter,
                 from_stage="reception",
-                to_stage=to_stage
+                to_stage=to_stage  # ← Auto-routed based on token number
             )
         else:
-            # nursing: finish previous one so it disappears
+            # nursing/lab: finish previous one so it disappears
             db.complete_last_called(conn, dept=body.dept, stage=body.stage, counter=body.counter)
 
         token_no = db.call_next_atomic(conn, body.dept, body.counter, body.mode, stage=body.stage)

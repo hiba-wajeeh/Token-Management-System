@@ -151,7 +151,7 @@ def create_token_atomic(conn, dept, visit_type, appt_start, walkin_start, lab_st
         priority = 3
         col = "next_lab_token"
         fallback_start = lab_start
-        stage = "lab"
+        stage = "reception"
 
     cur = conn.cursor()
 
